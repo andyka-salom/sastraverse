@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "595875393228",
+    "project_id": "sastraverse",
+    "storage_bucket": "sastraverse.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:595875393228:android:aec01f890bb0ffe4a39c69",
+        "android_client_info": {
+          "package_name": "com.example.sastraverse"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyClIqt-fUF_lsd87fFYBa6r1h7_MCl7SeI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
