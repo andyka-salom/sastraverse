@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:sastraverse/page/login.dart';
-import 'package:google_fonts/google_fonts.dart'; // Import Google Fonts
+import 'package:google_fonts/google_fonts.dart';
+import 'package:appearance/appearance.dart'; // Import Appearance
 
 class OnboardingPage extends StatefulWidget {
   const OnboardingPage({Key? key}) : super(key: key);
@@ -47,31 +48,27 @@ class _OnboardingPageState extends State<OnboardingPage> {
 
   @override
   Widget build(BuildContext context) {
+    final appearance = Appearance.of(context); // Get Appearance instance
+    final isDarkMode = appearance?.mode == ThemeMode.dark;
+
     return Scaffold(
-      backgroundColor: Color(0xFFF8F8FF), // Soft background color
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor, // Themed background
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(24.0), // Increased padding
+          padding: const EdgeInsets.all(24.0),
           child: Column(
             children: [
-              Align(
-                alignment: Alignment.topRight,
-                child: _currentPage != 2
-                    ? TextButton(
-                        onPressed: () {
-                          Navigator.pushReplacement(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (context) => LoginPage()));
-                        },
-                        style: TextButton.styleFrom(
-                          foregroundColor: Colors.grey[600],
-                        ),
-                        child: Text('Skip',
-                            style: GoogleFonts.poppins(
-                                fontWeight: FontWeight.w500)),
-                      )
-                    : null,
+              Row( // Wrap to put things on the side
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const SizedBox(width: 1), // Spacer
+                  Switch( // Theme Switch
+                    value: isDarkMode,
+                    onChanged: (value) {
+                      appearance?.setMode(value ? ThemeMode.dark : ThemeMode.light);
+                    },
+                  ),
+                ],
               ),
               Expanded(
                 child: PageView.builder(
@@ -91,7 +88,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: _buildPageIndicator(),
               ),
-              SizedBox(height: 24.0), // Added spacing
+              const SizedBox(height: 24.0),
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8.0),
                 child: _currentPage != 2
@@ -102,43 +99,44 @@ class _OnboardingPageState extends State<OnboardingPage> {
                             onPressed: _currentPage > 0
                                 ? () {
                                     _pageController.previousPage(
-                                      duration: Duration(milliseconds: 300),
+                                      duration: const Duration(milliseconds: 300),
                                       curve: Curves.ease,
                                     );
                                   }
                                 : null,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.white,
-                              foregroundColor: Colors.grey[700],
+                              backgroundColor: Theme.of(context).colorScheme.surface, // White
+                              foregroundColor: Theme.of(context).textTheme.bodyMedium!.color, // Grey[700]
+
                               elevation: 2,
-                              padding: EdgeInsets.symmetric(
+                              padding: const EdgeInsets.symmetric(
                                   horizontal: 24, vertical: 12),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12.0),
                               ),
                             ),
-                            child: Icon(Icons.arrow_back_ios_new_rounded, size: 20,),
+                            child: const Icon(Icons.arrow_back_ios_new_rounded, size: 20,),
                           ),
                           ElevatedButton(
                             onPressed: _currentPage < onboardingData.length - 1
                                 ? () {
                                     _pageController.nextPage(
-                                      duration: Duration(milliseconds: 300),
+                                      duration: const Duration(milliseconds: 300),
                                       curve: Curves.ease,
                                     );
                                   }
                                 : null,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.white,
-                              foregroundColor: Colors.grey[700],
+                              backgroundColor: Theme.of(context).colorScheme.surface, // White
+                              foregroundColor: Theme.of(context).textTheme.bodyMedium!.color, // Grey[700]
                               elevation: 2,
-                              padding: EdgeInsets.symmetric(
+                              padding: const EdgeInsets.symmetric(
                                   horizontal: 24, vertical: 12),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12.0),
                               ),
                             ),
-                            child: Icon(Icons.arrow_forward_ios_rounded, size: 20,),
+                            child: const Icon(Icons.arrow_forward_ios_rounded, size: 20,),
                           ),
                         ],
                       )
@@ -149,10 +147,10 @@ class _OnboardingPageState extends State<OnboardingPage> {
                             _navigateToLogin(context);
                           },
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Color(0xFF6750A4), // Primary color
-                            foregroundColor: Colors.white,
+                            backgroundColor: Theme.of(context).colorScheme.primary, // Primary color
+                            foregroundColor: Theme.of(context).colorScheme.onPrimary, // White
                             elevation: 3,
-                            padding: EdgeInsets.symmetric(vertical: 16),
+                            padding: const EdgeInsets.symmetric(vertical: 16),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12.0),
                             ),
@@ -180,13 +178,13 @@ class _OnboardingPageState extends State<OnboardingPage> {
 
   Widget _indicator(bool isActive) {
     return AnimatedContainer(
-      duration: Duration(milliseconds: 150),
-      margin: EdgeInsets.symmetric(horizontal: 6.0),
+      duration: const Duration(milliseconds: 150),
+      margin: const EdgeInsets.symmetric(horizontal: 6.0),
       height: 8.0,
       width: isActive ? 24.0 : 8.0,
       decoration: BoxDecoration(
-        color: isActive ? Color(0xFF6750A4) : Colors.grey[400],
-        borderRadius: BorderRadius.all(Radius.circular(12)),
+        color: isActive ? Theme.of(context).colorScheme.primary : Colors.grey[400],
+        borderRadius: const BorderRadius.all(Radius.circular(12)),
       ),
     );
   }
@@ -200,7 +198,7 @@ class OnboardingItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: EdgeInsets.all(16.0),
+      padding: const EdgeInsets.all(16.0),
       child: Column(
         children: [
           Expanded(
@@ -213,7 +211,7 @@ class OnboardingItem extends StatelessWidget {
                     color: Colors.grey.withOpacity(0.2),
                     spreadRadius: 2,
                     blurRadius: 8,
-                    offset: Offset(0, 4),
+                    offset: const Offset(0, 4),
                   ),
                 ],
               ),
@@ -226,22 +224,22 @@ class OnboardingItem extends StatelessWidget {
               ),
             ),
           ),
-          SizedBox(height: 32.0),
+          const SizedBox(height: 32.0),
           Text(
             data['title']!,
             style: GoogleFonts.poppins(
               fontSize: 28.0,
               fontWeight: FontWeight.bold,
-              color: Color(0xFF333333),
+              color: Theme.of(context).textTheme.bodyLarge!.color,
             ),
             textAlign: TextAlign.center,
           ),
-          SizedBox(height: 16.0),
+          const SizedBox(height: 16.0),
           Text(
             data['description']!,
             style: GoogleFonts.poppins(
               fontSize: 16.0,
-              color: Colors.grey[700],
+              color: Theme.of(context).textTheme.bodyMedium!.color,
               fontWeight: FontWeight.w400,
             ),
             textAlign: TextAlign.center,

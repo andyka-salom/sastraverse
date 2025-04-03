@@ -1,17 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../widgets/accountnav.dart';
-import '../widgets/customtextfield.dart';
 import '../widgets/authbutton.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../app_routes.dart';
+import 'package:appearance/appearance.dart'; // Import Appearance
+import '../widgets/text_theme.dart';
 
 class LoginPage extends StatefulWidget {
-  // ignore: use_key_in_widget_constructors
   const LoginPage({Key? key});
 
   @override
-  // ignore: library_private_types_in_public_api
   _LoginPageState createState() => _LoginPageState();
 }
 
@@ -32,17 +31,13 @@ class _LoginPageState extends State<LoginPage> {
       if (user != null) {
         SharedPreferences prefs = await SharedPreferences.getInstance();
         await prefs.setString('user_uid', user.uid);
-        // ignore: use_build_context_synchronously
-        Navigator.pushReplacementNamed(context, AppRoutes.home);
+        Navigator.pushReplacementNamed(context, AppRoutes.welcomeScreen);
       } else {
-        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Login failed. Could not retrieve user information.')),
         );
       }
-
     } catch (e) {
-      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Invalid email or password.')),
       );
@@ -51,8 +46,11 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
+    final appearance = Appearance.of(context);
+    final isDarkMode = appearance?.mode == ThemeMode.dark;
+
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: SingleChildScrollView(
           child: Padding(
@@ -60,28 +58,33 @@ class _LoginPageState extends State<LoginPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const SizedBox(width: 1), //  placeholder
+                    Switch( // Theme Switch
+                      value: isDarkMode,
+                      onChanged: (value) {
+                        appearance?.setMode(value ? ThemeMode.dark : ThemeMode.light);
+                      },
+                    ),
+                  ],
+                ),
                 Center(
                   child: Image.asset(
                     'assets/images/logo.png',
                     height: 150,
                   ),
                 ),
-
                 const SizedBox(height: 30),
-                // Login Title
-                const Text(
+                Text(
                   'Login Your Account',
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF3A3A55),
-                  ),
+                  style: Theme.of(context).textTheme.titleLarge,
                 ),
                 const SizedBox(height: 40),
 
-                // Email TextField (Using Component)
-                CustomTextField(
+                // Email TextField
+                ThemedTextField(
                   controller: _emailController,
                   hintText: 'Enter Your Email',
                   prefixIcon: Icons.email_outlined,
@@ -89,8 +92,8 @@ class _LoginPageState extends State<LoginPage> {
                 ),
                 const SizedBox(height: 20),
 
-                // Password TextField (Using Component)
-                CustomTextField(
+                // Password TextField
+                ThemedTextField(
                   controller: _passwordController,
                   hintText: 'Password',
                   prefixIcon: Icons.lock_outline,
@@ -124,17 +127,18 @@ class _LoginPageState extends State<LoginPage> {
                 ),
                 const SizedBox(height: 30),
 
-                // Login Button (Using Component)
+                // Login Button
                 AuthButton(text: 'Login', onPressed: _login),
                 const SizedBox(height: 20),
 
-                // Create New Account? (Using Component)
-                AccountNavigation(
+                // Create New Account?
+                 AccountNavigation(
                   text: 'Create New Account? ',
                   actionText: 'Sign up',
                   onPressed: () {
                     Navigator.pushReplacementNamed(context, '/signup');
                   },
+                  textColor: Theme.of(context).textTheme.bodyMedium!.color!,// Themed Text
                 ),
                 const SizedBox(height: 20),
               ],

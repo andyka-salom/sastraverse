@@ -2,14 +2,14 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../widgets/accountnav.dart';
-import '../widgets/customtextfield.dart';
 import '../widgets/authbutton.dart';
+import '../widgets/text_theme.dart';
+import 'package:appearance/appearance.dart';
 
 class SignUpPage extends StatefulWidget {
-  const SignUpPage({super.key,});
+  const SignUpPage({Key? key});
 
   @override
-  // ignore: library_private_types_in_public_api
   _SignUpPageState createState() => _SignUpPageState();
 }
 
@@ -35,7 +35,6 @@ class _SignUpPageState extends State<SignUpPage> {
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
-      // ignore: use_build_context_synchronously
       Navigator.pushReplacementNamed(context, '/login');
     } on FirebaseAuthException catch (e) {
       String errorMessage = 'Signup failed. Please try again.';
@@ -48,7 +47,6 @@ class _SignUpPageState extends State<SignUpPage> {
         errorMessage = 'The email address is not valid.';
       }
 
-      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(errorMessage)),
       );
@@ -60,7 +58,6 @@ class _SignUpPageState extends State<SignUpPage> {
       if (kDebugMode) {
         print("Generic signup error: $e");
       }
-      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
             content: Text('Signup failed. An unexpected error occurred.')),
@@ -70,8 +67,11 @@ class _SignUpPageState extends State<SignUpPage> {
 
   @override
   Widget build(BuildContext context) {
+    final appearance = Appearance.of(context);
+    final isDarkMode = appearance?.mode == ThemeMode.dark;
+
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: SingleChildScrollView(
           child: Padding(
@@ -79,7 +79,18 @@ class _SignUpPageState extends State<SignUpPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const SizedBox(width: 1),
+                    Switch( // Theme Switch
+                      value: isDarkMode,
+                      onChanged: (value) {
+                        appearance?.setMode(value ? ThemeMode.dark : ThemeMode.light);
+                      },
+                    ),
+                  ],
+                ),
                 Center(
                   child: Image.asset(
                     'assets/images/logo.png',
@@ -87,23 +98,21 @@ class _SignUpPageState extends State<SignUpPage> {
                   ),
                 ),
                 const SizedBox(height: 30),
-                const Text(
+                Text(
                   'Create Your Account',
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF3A3A55),
-                  ),
+                  style: Theme.of(context).textTheme.titleLarge,
                 ),
                 const SizedBox(height: 40),
-                CustomTextField(
+                // Email TextField
+                ThemedTextField(
                   controller: _emailController,
                   hintText: 'Enter Your Email',
                   prefixIcon: Icons.email_outlined,
                   keyboardType: TextInputType.emailAddress,
                 ),
                 const SizedBox(height: 20),
-                CustomTextField(
+                // Password TextField
+                ThemedTextField(
                   controller: _passwordController,
                   hintText: 'Password',
                   prefixIcon: Icons.lock_outline,
@@ -121,7 +130,8 @@ class _SignUpPageState extends State<SignUpPage> {
                   ),
                 ),
                 const SizedBox(height: 20),
-                CustomTextField(
+                // Confirm Password TextField
+                ThemedTextField(
                   controller: _confirmPasswordController,
                   hintText: 'Confirm Password',
                   prefixIcon: Icons.lock_outline,
@@ -148,7 +158,7 @@ class _SignUpPageState extends State<SignUpPage> {
                   actionText: 'Login',
                   onPressed: () {
                     Navigator.pushReplacementNamed(context, '/login');
-                  },
+                  },textColor: Theme.of(context).textTheme.bodyMedium!.color!,// Themed Text
                 ),
                 const SizedBox(height: 20),
               ],
