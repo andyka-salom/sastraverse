@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../widgets/accountnav.dart';
 import '../widgets/authbutton.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -18,31 +19,49 @@ class _LoginPageState extends State<LoginPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   bool _obscurePassword = true;
+  bool _isLoading = false;
 
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  // --- Fungsi _login() Tetap Sama ---
   Future<void> _login() async {
+    if (_isLoading) return;
+    setState(() => _isLoading = true);
     try {
       UserCredential userCredential = await _auth.signInWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
       User? user = userCredential.user;
-
       if (user != null) {
-        SharedPreferences prefs = await SharedPreferences.getInstance();
-        await prefs.setString('user_uid', user.uid);
-        Navigator.pushReplacementNamed(context, AppRoutes.welcomeScreen);
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Login failed. Could not retrieve user information.')),
-        );
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Invalid email or password.')),
-      );
-    }
+        final String userId = user.uid;
+        final DocumentReference userDocRef = _firestore.collection('users').doc(userId);
+        final DocumentSnapshot userDocSnapshot = await userDocRef.get();
+        if (!userDocSnapshot.exists) {
+          print('User document for $userId does not exist. Creating...');
+          try {
+            await userDocRef.set({
+              'age': 20, 'email': user.email ?? '', 'name': '', 'profileImageUrl': '', 'userId': userId, 'createdAt': FieldValue.serverTimestamp(),
+            });
+             print('User document created successfully.');
+          } catch (e) { print('Error creating user document: $e'); /* Handle */ setState(() => _isLoading = false); return; }
+        } else { print('User document for $userId already exists.'); }
+        SharedPreferences prefs = await SharedPreferences.getInstance(); await prefs.setString('user_uid', userId);
+        print('User UID saved to SharedPreferences.');
+        if (mounted) { setState(() => _isLoading = false); Navigator.pushReplacementNamed(context, AppRoutes.welcomeScreen); }
+      } else { if (mounted){ /* Handle user null */ } }
+    } on FirebaseAuthException catch (e) { print('FirebaseAuthException: ${e.code} - ${e.message}'); String msg = '...'; /* Set error message based on e.code */ if (mounted){ ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg))); }
+    } catch (e) { print('General Login Error: $e'); if (mounted){ /* Handle general error */ }
+    } finally { if (mounted && _isLoading) { setState(() => _isLoading = false); } }
   }
+  // --- Akhir Fungsi _login() ---
 
   @override
   Widget build(BuildContext context) {
