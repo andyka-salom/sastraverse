@@ -1,10 +1,7 @@
-import 'dart:io' show Platform; // Import untuk Platform check
-
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart'; // Import untuk widget Cupertino (jika diperlukan secara eksplisit)
+import 'package:flutter/cupertino.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:appearance/appearance.dart'; // Pastikan package ini terpasang dan diinisialisasi di main.dart jika diperlukan
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -18,25 +15,20 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Memanggil Appearance.of(context) mungkin untuk mendeteksi tema sistem (light/dark)
-    // Pastikan AppearanceProvider sudah di-setup di atas MaterialApp/CupertinoApp
-    Appearance.of(context);
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
+    // Define colors based on the current theme for consistency
+    final Color scaffoldBackgroundColor = Theme.of(context).scaffoldBackgroundColor;
     final Color? textColor = Theme.of(context).textTheme.bodyLarge?.color;
-    final Color cardColor = Theme.of(context).cardColor; // Menggunakan Theme.of(context).cardColor
+    final Color cardColor = Theme.of(context).cardColor;
     final Color primaryColor = Theme.of(context).colorScheme.primary;
-    final Color subtleTextColor = Theme.of(context).textTheme.bodyMedium!.color!.withOpacity(0.7);
+    final Color subtleTextColor = Theme.of(context).textTheme.bodyMedium!.color!.withOpacity(0.65);
     final Color borderColor = Colors.grey[isDarkMode ? 700 : 300]!;
+    final Color placeholderColor = isDarkMode ? Colors.grey[800]! : Colors.grey[300]!;
 
-
-    // Menggunakan Scaffold sebagai root layout utama
-    // Untuk tampilan yang lebih mirip iOS, bisa menggunakan CupertinoPageScaffold
-    // Tapi Scaffold lebih umum untuk cross-platform dengan elemen adaptif
     return Scaffold(
       appBar: AppBar(
-        // Gunakan AppBar untuk Material look, atau CupertinoNavigationBar untuk iOS look
-        // AppBar lebih fleksibel untuk dicustom lintas platform
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        backgroundColor: scaffoldBackgroundColor,
         elevation: 0,
         title: Text(
           'SastraVerse',
@@ -47,18 +39,18 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
         centerTitle: true,
-        automaticallyImplyLeading: false
+        automaticallyImplyLeading: false,
       ),
-      body: SafeArea( // SafeArea penting untuk menghindari notch/area sistem
+      body: SafeArea(
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start, // Align filter ke kiri
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
-              // Tambahkan padding agar tidak terlalu mepet tepi
-              padding: const EdgeInsets.symmetric(vertical: 8.0),
+              padding: const EdgeInsets.symmetric(vertical: 12.0),
               child: SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                physics: const BouncingScrollPhysics(),
                 child: Row(
                   children: [
                     FilterButton(
@@ -70,10 +62,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       primaryColor: primaryColor,
                       cardColor: cardColor,
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 10),
                     FilterButton(
                       text: 'Genre',
-                      icon: Icons.category_outlined, // Icon outline
+                      icon: CupertinoIcons.tag, // Use Cupertino icon
                       isSelected: _selectedFilter == 'Genre',
                       onPressed: () => setState(() => _selectedFilter = 'Genre'),
                       textColor: textColor,
@@ -81,10 +73,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       primaryColor: primaryColor,
                       cardColor: cardColor,
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 10),
                     FilterButton(
                       text: 'Suggestions',
-                      icon: Icons.lightbulb_outline,
+                      icon: CupertinoIcons.lightbulb, // Use Cupertino icon
                       isSelected: _selectedFilter == 'Suggestions',
                       onPressed: () => setState(() => _selectedFilter = 'Suggestions'),
                       textColor: textColor,
@@ -92,10 +84,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       primaryColor: primaryColor,
                       cardColor: cardColor,
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 10),
                     FilterButton(
                       text: 'Top Rated',
-                      icon: Icons.star_outline, // Icon outline
+                      icon: CupertinoIcons.star, // Use Cupertino icon
                       isSelected: _selectedFilter == 'Top Rated',
                       onPressed: () => setState(() => _selectedFilter = 'Top Rated'),
                       textColor: textColor,
@@ -108,27 +100,36 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
 
-            // Banner Image - Mungkin tidak perlu di semua filter?
-            // Kita bisa menampilkannya hanya saat 'All' atau 'Suggestions'
+            // --- Banner Image (Conditional) ---
             if (_selectedFilter == 'All' || _selectedFilter == 'Suggestions')
               Padding(
-                padding: const EdgeInsets.fromLTRB(16.0, 8.0, 16.0, 16.0), // Sesuaikan padding
+                padding: const EdgeInsets.fromLTRB(16.0, 0.0, 16.0, 16.0), // Adjust padding
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(16.0),
+                  borderRadius: BorderRadius.circular(16.0), // Consistent rounding
                   child: Image.asset(
-                    'assets/images/book_cover.png', // Pastikan path ini benar
-                    // Tinggi bisa dibuat lebih adaptif jika perlu
-                    height: MediaQuery.of(context).size.height * 0.25, // Contoh: 25% tinggi layar
+                    'assets/images/book_cover.png', // Ensure this path is correct in pubspec.yaml and project structure
+                    height: MediaQuery.of(context).size.height * 0.22, // Slightly smaller banner
                     width: double.infinity,
                     fit: BoxFit.cover,
+                    // Optional: Add error handling for asset image
+                    errorBuilder: (context, error, stackTrace) => Container(
+                      height: MediaQuery.of(context).size.height * 0.22,
+                      color: placeholderColor,
+                      child: Center(child: Icon(CupertinoIcons.photo, color: subtleTextColor)),
+                    ),
                   ),
                 ),
               ),
+            // Add spacing if banner is not shown
             if (_selectedFilter != 'All' && _selectedFilter != 'Suggestions')
               const SizedBox(height: 16),
 
+            // --- Main Content Area ---
             Expanded(
-              child: _buildContent(textColor, cardColor, subtleTextColor),
+              child: Builder(
+                builder: (context) => _buildContent(
+                    textColor, cardColor, subtleTextColor, primaryColor, placeholderColor),
+              ),
             ),
           ],
         ),
@@ -136,61 +137,67 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // Method untuk membangun konten utama berdasarkan filter
-  Widget _buildContent(Color? textColor, Color cardColor, Color subtleTextColor) {
+  Widget _buildContent(Color? textColor, Color cardColor, Color subtleTextColor, Color primaryColor, Color placeholderColor) {
     switch (_selectedFilter) {
       case 'All':
-        return _buildAllNovels(textColor, cardColor, subtleTextColor);
+        return _buildAllNovels(textColor, cardColor, subtleTextColor, placeholderColor);
       case 'Genre':
-        return _buildGenreCategories(textColor, cardColor, subtleTextColor);
+        return _buildGenreCategories(textColor, cardColor, subtleTextColor, placeholderColor);
       case 'Suggestions':
-        return _buildSuggestedNovels(textColor, cardColor, subtleTextColor);
+        // Pass placeholderColor to the helper
+        return _buildSuggestedNovels(textColor, cardColor, subtleTextColor, placeholderColor);
       case 'Top Rated':
-        return _buildTopRatedNovels(textColor, cardColor, subtleTextColor);
+        // Pass placeholderColor to the helper
+        return _buildTopRatedNovels(textColor, cardColor, subtleTextColor, placeholderColor);
       default:
-        return const Center(child: Text('Invalid filter'));
+        return Center(child: Text('Invalid filter selected', style: TextStyle(color: textColor?.withOpacity(0.6))));
     }
   }
 
-  // --- Builder Methods untuk setiap Filter ---
-
-  Widget _buildAllNovels(Color? textColor, Color cardColor, Color subtleTextColor) {
+  Widget _buildAllNovels(Color? textColor, Color cardColor, Color subtleTextColor, Color placeholderColor) {
     return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance.collection('novels').orderBy('title').snapshots(), // Urutkan berdasarkan judul
+      stream: FirebaseFirestore.instance
+          .collection('novels')
+          .orderBy('title')
+          .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
-          return Center(child: Text('Error: ${snapshot.error}', style: TextStyle(color: Colors.red)));
+          return Center(child: Text('Error loading novels: ${snapshot.error}', style: const TextStyle(color: Colors.redAccent)));
         }
         if (snapshot.connectionState == ConnectionState.waiting) {
-          // Gunakan indicator adaptif
-          return const Center(child: CircularProgressIndicator.adaptive());
+          return ListView.separated(
+             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            itemCount: 5,
+            separatorBuilder: (context, index) => const SizedBox(height: 12),
+            itemBuilder: (context, index) => NovelCardPlaceholder(cardColor: cardColor, placeholderColor: placeholderColor),
+          );
         }
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
           return Center(child: Text('No novels found.', style: TextStyle(color: textColor?.withOpacity(0.6))));
         }
 
-        // Gunakan ListView.separated untuk memberi jarak antar item
         return ListView.separated(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
           itemCount: snapshot.data!.docs.length,
-          separatorBuilder: (context, index) => const SizedBox(height: 12), // Jarak antar kartu
+          separatorBuilder: (context, index) => const SizedBox(height: 12),
           itemBuilder: (context, index) {
             final data = snapshot.data!.docs[index].data() as Map<String, dynamic>;
-            final novelId = snapshot.data!.docs[index].id; // Dapatkan ID dokumen
+            final novelId = snapshot.data!.docs[index].id;
             return NovelCard(
-              novelId: novelId, // Kirim ID ke NovelCard jika perlu
-              title: data['title'] ?? 'No Title',
-              author: data['author'] ?? 'No Author',
-              coverImageUrl: data['coverImageUrl'] ?? '', // Handle jika URL kosong/null
+              novelId: novelId,
+              title: data['title'] ?? 'No Title Provided',
+              author: data['author'] ?? 'Unknown Author',
+              coverImageUrl: data['coverImageUrl'] ?? '',
               description: data['description'] ?? 'No description available.',
               onTap: () {
-                // Navigasi ke Detail Screen dengan novelId
                 print('Navigate to details for novel ID: $novelId');
+                // TODO: Implement navigation
                 // Navigator.push(context, MaterialPageRoute(builder: (context) => NovelDetailScreen(novelId: novelId)));
               },
               textColor: textColor,
               cardColor: cardColor,
               subtleTextColor: subtleTextColor,
+              placeholderColor: placeholderColor,
             );
           },
         );
@@ -198,32 +205,46 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildGenreCategories(Color? textColor, Color cardColor, Color subtleTextColor) {
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance.collection('categories').orderBy('categories').snapshots(), // Urutkan berdasarkan nama kategori
+  Widget _buildGenreCategories(Color? textColor, Color cardColor, Color subtleTextColor, Color placeholderColor) {
+     return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('categories')
+          .orderBy('categories')
+          .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
-          return Center(child: Text('Error: ${snapshot.error}', style: TextStyle(color: Colors.red)));
+          return Center(child: Text('Error loading categories: ${snapshot.error}', style: const TextStyle(color: Colors.redAccent)));
         }
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator.adaptive());
+          // Show a grid of placeholders
+           final screenWidth = MediaQuery.of(context).size.width;
+           final crossAxisCount = (screenWidth / 170).floor().clamp(2, 4);
+           return GridView.builder(
+             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+               crossAxisCount: crossAxisCount,
+               crossAxisSpacing: 12,
+               mainAxisSpacing: 12,
+               childAspectRatio: 0.7,
+             ),
+             itemCount: 6,
+             itemBuilder: (context, index) => CategoryCardPlaceholder(cardColor: cardColor, placeholderColor: placeholderColor),
+           );
         }
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
           return Center(child: Text('No categories found.', style: TextStyle(color: textColor?.withOpacity(0.6))));
         }
 
-        // --- Responsiveness untuk Grid ---
         final screenWidth = MediaQuery.of(context).size.width;
-        // Tentukan jumlah kolom berdasarkan lebar layar
-        final crossAxisCount = (screenWidth / 180).floor().clamp(2, 5); // Target lebar item ~180px, min 2 kolom, max 5
+        final crossAxisCount = (screenWidth / 170).floor().clamp(2, 4);
 
         return GridView.builder(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: crossAxisCount, // Jumlah kolom dinamis
-            crossAxisSpacing: 16,
-            mainAxisSpacing: 16,
-            childAspectRatio: 0.75, // Sesuaikan rasio aspek kartu kategori
+            crossAxisCount: crossAxisCount,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: 0.7,
           ),
           itemCount: snapshot.data!.docs.length,
           itemBuilder: (context, index) {
@@ -232,17 +253,17 @@ class _HomeScreenState extends State<HomeScreen> {
             return CategoryCard(
               categoryId: categoryId,
               title: data['categories'] ?? 'Unnamed Category',
-              // Deskripsi mungkin tidak ada, beri nilai default
               description: data['description'] ?? '',
               coverImageUrl: data['coverImageUrl'] ?? '',
               onTap: () {
-                // Navigasi ke layar yang menampilkan novel berdasarkan kategori
-                print('Navigate to category: ${data['categories']} (ID: $categoryId)');
-                // Navigator.push(context, MaterialPageRoute(builder: (context) => NovelsByCategoryScreen(category: data['categories'])));
+                 print('Navigate to category: ${data['categories']} (ID: $categoryId)');
+                 // TODO: Implement navigation
+                // Navigator.push(context, MaterialPageRoute(builder: (context) => NovelsByCategoryScreen(categoryId: categoryId, categoryName: data['categories'])));
               },
                textColor: textColor,
               cardColor: cardColor,
               subtleTextColor: subtleTextColor,
+              placeholderColor: placeholderColor, // Pass placeholder color
             );
           },
         );
@@ -250,106 +271,127 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // Helper widget untuk menampilkan novel dari data suggestion/rating
-  Widget _buildNovelFromReference(DocumentSnapshot refDoc, String collectionName, Color? textColor, Color cardColor, Color subtleTextColor) {
-    final data = refDoc.data() as Map<String, dynamic>;
-    final novelId = data['novelId'] as String?;
-    final ratingValue = (collectionName == 'rating' ? data['rating'] : null) as num?; // Ambil rating jika dari collection 'rating'
-
-    if (novelId == null) {
-      // Jika tidak ada novelId, tampilkan pesan atau widget kosong
-      return const SizedBox.shrink(); // Widget kosong
-       // Atau: return ListTile(title: Text('Missing novel reference', style: TextStyle(color: Colors.orange)));
+  // Helper to build NovelCard from a reference document (suggestion/rating)
+  Widget _buildNovelFromReference(DocumentSnapshot refDoc, String collectionName, Color? textColor, Color cardColor, Color subtleTextColor, Color placeholderColor) {
+    final data = refDoc.data() as Map<String, dynamic>?; // Make data nullable
+    if (data == null) {
+      // Handle case where document data is unexpectedly null
+      return const SizedBox.shrink();
     }
 
-    // Ambil detail novel berdasarkan novelId
+    final novelId = data['novelId'] as String?;
+    final ratingValue = (collectionName == 'rating' ? data['rating'] : null) as num?;
+
+    if (novelId == null) {
+      // Log or display an issue if novelId is missing
+      print('Warning: Document ${refDoc.id} in $collectionName is missing novelId.');
+      return const SizedBox.shrink();
+      // Or return a specific error card:
+      // return Card(color: cardColor, child: ListTile(title: Text('Invalid reference', style: TextStyle(color: Colors.orange))));
+    }
+
+    // Fetch the actual novel data using FutureBuilder
     return FutureBuilder<DocumentSnapshot>(
       future: FirebaseFirestore.instance.collection('novels').doc(novelId).get(),
       builder: (context, novelSnapshot) {
         if (novelSnapshot.connectionState == ConnectionState.waiting) {
-          // Tampilkan shimmer/placeholder card selagi loading
-          return NovelCardPlaceholder(cardColor: cardColor);
+          // Show placeholder card while fetching novel details
+          return NovelCardPlaceholder(cardColor: cardColor, placeholderColor: placeholderColor);
         }
         if (novelSnapshot.hasError) {
-          return ListTile(title: Text('Error loading novel: $novelId', style: TextStyle(color: Colors.red)));
+          return Card(color: cardColor, child: ListTile(title: Text('Error loading novel: $novelId', style: const TextStyle(color: Colors.redAccent))));
         }
         if (!novelSnapshot.hasData || !novelSnapshot.data!.exists) {
-          return ListTile(title: Text('Novel (ID: $novelId) not found.', style: TextStyle(color: Colors.orange)));
+          return Card(color: cardColor, child: ListTile(title: Text('Novel (ID: $novelId) not found.', style: const TextStyle(color: Colors.orange))));
         }
 
         final novelData = novelSnapshot.data!.data() as Map<String, dynamic>;
         return NovelCard(
           novelId: novelId,
           title: novelData['title'] ?? 'No Title',
-          author: novelData['author'] ?? 'No Author',
+          author: novelData['author'] ?? 'Unknown Author',
           coverImageUrl: novelData['coverImageUrl'] ?? '',
           description: novelData['description'] ?? 'No description available.',
-          rating: ratingValue?.toDouble(), // Tampilkan rating jika ada
+          rating: ratingValue?.toDouble(), // Pass rating if available
           onTap: () {
             print('Navigate to details for novel ID: $novelId');
+             // TODO: Implement navigation
             // Navigator.push(context, MaterialPageRoute(builder: (context) => NovelDetailScreen(novelId: novelId)));
           },
           textColor: textColor,
           cardColor: cardColor,
           subtleTextColor: subtleTextColor,
+          placeholderColor: placeholderColor, // Pass placeholder color
         );
       },
     );
   }
 
-
-  Widget _buildSuggestedNovels(Color? textColor, Color cardColor, Color subtleTextColor) {
+  Widget _buildSuggestedNovels(Color? textColor, Color cardColor, Color subtleTextColor, Color placeholderColor) {
     return StreamBuilder<QuerySnapshot>(
-      // Ambil data dari collection 'suggestion'
-      // Mungkin perlu diurutkan berdasarkan kriteria tertentu, misal timestamp
-      stream: FirebaseFirestore.instance.collection('suggestion').limit(10).snapshots(), // Batasi jumlah suggestion
+      stream: FirebaseFirestore.instance
+          .collection('suggestion')
+          .limit(15)
+          .snapshots(),
       builder: (context, snapshot) {
          if (snapshot.hasError) {
-          return Center(child: Text('Error: ${snapshot.error}', style: TextStyle(color: Colors.red)));
+          return Center(child: Text('Error loading suggestions: ${snapshot.error}', style: const TextStyle(color: Colors.redAccent)));
         }
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator.adaptive());
+           return ListView.separated(
+             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+             itemCount: 5,
+             separatorBuilder: (context, index) => const SizedBox(height: 12),
+             itemBuilder: (context, index) => NovelCardPlaceholder(cardColor: cardColor, placeholderColor: placeholderColor),
+           );
         }
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
           return Center(child: Text('No suggestions available right now.', style: TextStyle(color: textColor?.withOpacity(0.6))));
         }
 
         return ListView.separated(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
           itemCount: snapshot.data!.docs.length,
-           separatorBuilder: (context, index) => const SizedBox(height: 12),
+          separatorBuilder: (context, index) => const SizedBox(height: 12),
           itemBuilder: (context, index) {
             final suggestionDoc = snapshot.data!.docs[index];
-            // Gunakan helper untuk membangun kartu novel
-            return _buildNovelFromReference(suggestionDoc, 'suggestion', textColor, cardColor, subtleTextColor);
+            return _buildNovelFromReference(suggestionDoc, 'suggestion', textColor, cardColor, subtleTextColor, placeholderColor);
           },
         );
       },
     );
   }
 
-  Widget _buildTopRatedNovels(Color? textColor, Color cardColor, Color subtleTextColor) {
+  Widget _buildTopRatedNovels(Color? textColor, Color cardColor, Color subtleTextColor, Color placeholderColor) {
     return StreamBuilder<QuerySnapshot>(
-      // Ambil data dari collection 'rating', urutkan berdasarkan rating descending
-      stream: FirebaseFirestore.instance.collection('rating').orderBy('rating', descending: true).limit(20).snapshots(), // Batasi jumlah top rated
+      stream: FirebaseFirestore.instance
+          .collection('rating')
+          .orderBy('rating', descending: true)
+          .limit(20)
+          .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
-          return Center(child: Text('Error: ${snapshot.error}', style: TextStyle(color: Colors.red)));
+          return Center(child: Text('Error loading top rated novels: ${snapshot.error}', style: const TextStyle(color: Colors.redAccent)));
         }
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator.adaptive());
+           return ListView.separated(
+             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+             itemCount: 5,
+             separatorBuilder: (context, index) => const SizedBox(height: 12),
+             itemBuilder: (context, index) => NovelCardPlaceholder(cardColor: cardColor, placeholderColor: placeholderColor),
+           );
         }
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
           return Center(child: Text('No rated novels found yet.', style: TextStyle(color: textColor?.withOpacity(0.6))));
         }
 
         return ListView.separated(
-          padding: const EdgeInsets.all(16),
+           padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
           itemCount: snapshot.data!.docs.length,
           separatorBuilder: (context, index) => const SizedBox(height: 12),
           itemBuilder: (context, index) {
             final ratingDoc = snapshot.data!.docs[index];
-            return _buildNovelFromReference(ratingDoc, 'rating', textColor, cardColor, subtleTextColor);
+            return _buildNovelFromReference(ratingDoc, 'rating', textColor, cardColor, subtleTextColor, placeholderColor);
           },
         );
       },
@@ -357,7 +399,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-// --- Custom Widgets (FilterButton, CategoryCard, NovelCard) ---
+// --- Custom Widgets ---
 
 class FilterButton extends StatelessWidget {
   final String text;
@@ -368,7 +410,6 @@ class FilterButton extends StatelessWidget {
   final Color borderColor;
   final Color primaryColor;
   final Color cardColor;
-
 
   const FilterButton({
     Key? key,
@@ -384,45 +425,46 @@ class FilterButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Gunakan Material (atau CupertinoButton jika ingin gaya iOS)
-    // Di sini kita custom tampilan mirip chip
-    return GestureDetector(
-      onTap: onPressed,
-      child: AnimatedContainer( // Animasi halus saat state berubah
-        duration: const Duration(milliseconds: 200),
-        decoration: BoxDecoration(
-          // Gunakan warna dari theme
-          color: isSelected ? primaryColor.withOpacity(0.12) : cardColor.withOpacity(0.5),
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+    final Color effectiveTextColor = isSelected ? primaryColor : (textColor ?? (isDark ? Colors.white : Colors.black));
+    final Color effectiveIconColor = isSelected ? primaryColor : (textColor?.withOpacity(0.7) ?? (isDark ? Colors.white70 : Colors.black54));
+    final Color effectiveBackgroundColor = isSelected ? primaryColor.withOpacity(0.12) : cardColor;
+    final Color effectiveBorderColor = isSelected ? primaryColor : borderColor;
+
+    return Padding(
+      padding: const EdgeInsets.only(right: 0),
+      child: RawMaterialButton(
+        onPressed: onPressed,
+        elevation: isSelected ? 1.0 : 0.0,
+        fillColor: effectiveBackgroundColor,
+        splashColor: primaryColor.withOpacity(0.1),
+        highlightColor: primaryColor.withOpacity(0.05),
+        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+        shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(24.0),
-          border: Border.all(
-            color: isSelected ? primaryColor : borderColor,
+          side: BorderSide(
+            color: effectiveBorderColor,
             width: isSelected ? 1.5 : 1.0,
           ),
-          boxShadow: isSelected ? [
-             BoxShadow(
-                color: primaryColor.withOpacity(0.1),
-                blurRadius: 4,
-                offset: Offset(0, 2),
-              )
-          ] : [], // Beri sedikit shadow jika terpilih
         ),
-        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+        constraints: const BoxConstraints(),
+        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             if (icon != null)
               Icon(
                 icon,
-                size: 18, // Ukuran ikon sedikit lebih besar
-                color: isSelected ? primaryColor : textColor?.withOpacity(0.8),
+                size: 18,
+                color: effectiveIconColor,
               ),
             if (icon != null) const SizedBox(width: 6),
             Text(
               text,
               style: GoogleFonts.poppins(
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                color: isSelected ? primaryColor : textColor,
-                fontSize: 13, // Sedikit lebih kecil agar muat banyak
+                color: effectiveTextColor,
+                fontSize: 13.5,
               ),
             ),
           ],
@@ -431,6 +473,7 @@ class FilterButton extends StatelessWidget {
     );
   }
 }
+
 
 class CategoryCard extends StatelessWidget {
   final String categoryId;
@@ -441,7 +484,7 @@ class CategoryCard extends StatelessWidget {
   final Color? textColor;
   final Color cardColor;
   final Color subtleTextColor;
-
+  final Color placeholderColor;
 
   const CategoryCard({
     Key? key,
@@ -453,78 +496,82 @@ class CategoryCard extends StatelessWidget {
     required this.textColor,
     required this.cardColor,
     required this.subtleTextColor,
+    required this.placeholderColor,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return Card(
-      elevation: 2, // Sedikit elevasi
+      elevation: 1.5,
       color: cardColor,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12.0), // Radius lebih kecil
+        borderRadius: BorderRadius.circular(12.0),
       ),
-      clipBehavior: Clip.antiAlias, // Pastikan gambar ter-clip dengan benar
-      child: InkWell( // Beri efek ripple saat di-tap
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
         onTap: onTap,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Expanded(
-              flex: 3, // Beri porsi lebih banyak untuk gambar
+              flex: 3,
               child: coverImageUrl.isNotEmpty
                   ? Image.network(
                       coverImageUrl,
                       fit: BoxFit.cover,
-                       // Placeholder saat loading
+                      // Loading Indicator
                       loadingBuilder: (context, child, loadingProgress) {
                         if (loadingProgress == null) return child;
-                        return Center(
-                          child: CircularProgressIndicator.adaptive(
-                            value: loadingProgress.expectedTotalBytes != null
-                                ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
-                                : null,
+                        return Container(
+                          color: placeholderColor.withOpacity(0.5),
+                          child: Center(
+                            child: CircularProgressIndicator.adaptive(
+                              value: loadingProgress.expectedTotalBytes != null
+                                  ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                                  : null,
+                                 strokeWidth: 2,
+                            ),
                           ),
                         );
                       },
-                      // Tampilan jika error loading gambar
                       errorBuilder: (context, error, stackTrace) {
                         return Container(
-                           color: Colors.grey[300],
-                          child: Icon(Icons.broken_image_outlined, color: Colors.grey[600], size: 40),
+                          color: placeholderColor,
+                          child: Center(child: Icon(CupertinoIcons.photo, color: subtleTextColor, size: 40)),
                         );
                       },
                     )
-                  : Container( // Placeholder jika tidak ada URL gambar
-                     color: Colors.grey[300],
-                      child: Icon(Icons.category_outlined, color: Colors.grey[600], size: 40),
+                  : Container(
+                      color: placeholderColor,
+                      child: Center(child: Icon(CupertinoIcons.collections, color: subtleTextColor, size: 40)),
                     ),
             ),
             Expanded(
-              flex: 2, // Porsi untuk teks
+              flex: 2,
               child: Padding(
-                padding: const EdgeInsets.all(10.0), // Padding lebih kecil
+                padding: const EdgeInsets.all(10.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center, // Teks di tengah vertikal
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
                       title,
                       style: GoogleFonts.poppins(
-                        fontSize: 15, // Ukuran font title
-                        fontWeight: FontWeight.w600, // Lebih tebal
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
                         color: textColor,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                     // Tampilkan deskripsi hanya jika tidak kosong
                     if (description.isNotEmpty) ...[
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 3),
                       Text(
                         description,
                         style: GoogleFonts.poppins(
-                          fontSize: 11, // Ukuran font deskripsi
+                          fontSize: 11.5,
                           color: subtleTextColor,
+                           height: 1.3,
                         ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
@@ -541,6 +588,7 @@ class CategoryCard extends StatelessWidget {
   }
 }
 
+
 class NovelCard extends StatelessWidget {
   final String novelId;
   final String title;
@@ -548,10 +596,11 @@ class NovelCard extends StatelessWidget {
   final String coverImageUrl;
   final String description;
   final VoidCallback onTap;
-  final double? rating; // Rating bisa null
+  final double? rating;
   final Color? textColor;
   final Color cardColor;
   final Color subtleTextColor;
+  final Color placeholderColor;
 
   const NovelCard({
     Key? key,
@@ -565,12 +614,13 @@ class NovelCard extends StatelessWidget {
     required this.textColor,
     required this.cardColor,
     required this.subtleTextColor,
+    required this.placeholderColor,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return Card(
-      elevation: 2,
+      elevation: 1.5,
       color: cardColor,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12.0),
@@ -579,16 +629,16 @@ class NovelCard extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(12.0), // Padding konsisten
+          padding: const EdgeInsets.all(12.0),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Gambar Cover
+              // --- Cover Image ---
               ClipRRect(
-                borderRadius: BorderRadius.circular(8.0), // Radius gambar
+                borderRadius: BorderRadius.circular(8.0),
                 child: SizedBox(
-                  width: 80, // Lebar gambar tetap
-                  height: 120, // Tinggi gambar tetap
+                  width: 85,
+                  height: 125,
                   child: coverImageUrl.isNotEmpty
                       ? Image.network(
                           coverImageUrl,
@@ -596,25 +646,26 @@ class NovelCard extends StatelessWidget {
                           loadingBuilder: (context, child, loadingProgress) {
                             if (loadingProgress == null) return child;
                             return Container(
-                                color: Colors.grey[isDarkMode(context) ? 700 : 300],
-                                child: Center(child: CupertinoActivityIndicator()) // Gunakan Cupertino indicator kecil
-                                );
+                                color: placeholderColor.withOpacity(0.5),
+                                child: Center(child: CircularProgressIndicator.adaptive(strokeWidth: 2))
+                            );
                           },
                           errorBuilder: (context, error, stackTrace) {
                             return Container(
-                              color: Colors.grey[isDarkMode(context) ? 700 : 300],
-                              child: Icon(Icons.image_not_supported_outlined, color: Colors.grey[isDarkMode(context) ? 500: 500]),
+                              color: placeholderColor,
+                              child: Center(child: Icon(CupertinoIcons.book, color: subtleTextColor)),
                             );
                           },
                         )
-                      : Container(
-                          color: Colors.grey[isDarkMode(context) ? 700 : 300],
-                          child: Icon(Icons.book_outlined, color: Colors.grey[isDarkMode(context) ? 500: 500]),
+                      : Container( // Placeholder if no URL
+                          color: placeholderColor,
+                           child: Center(child: Icon(CupertinoIcons.book, color: subtleTextColor)),
                         ),
                 ),
               ),
               const SizedBox(width: 16),
-              // Informasi Teks
+
+              // --- Text Information ---
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -622,7 +673,7 @@ class NovelCard extends StatelessWidget {
                     Text(
                       title,
                       style: GoogleFonts.poppins(
-                        fontSize: 17, // Ukuran judul
+                        fontSize: 16.5,
                         fontWeight: FontWeight.w600,
                         color: textColor,
                       ),
@@ -631,11 +682,11 @@ class NovelCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'by $author', // Tambahkan 'by'
+                      'by $author',
                       style: GoogleFonts.poppins(
-                        fontSize: 13, // Ukuran author
+                        fontSize: 13,
                         color: subtleTextColor,
-                        fontWeight: FontWeight.w400,
+                        fontWeight: FontWeight.w500,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -644,25 +695,25 @@ class NovelCard extends StatelessWidget {
                     Text(
                       description,
                       style: GoogleFonts.poppins(
-                        fontSize: 12, // Ukuran deskripsi
-                        color: textColor?.withOpacity(0.85),
-                        height: 1.4, // Jarak antar baris
+                        fontSize: 12.5,
+                        color: textColor?.withOpacity(0.8),
+                        height: 1.4,
                       ),
-                      maxLines: 3, // Batasi deskripsi
+                      maxLines: 3,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 8),
-                    // Tampilkan Rating jika ada (lebih besar dari 0)
+                    const SizedBox(height: 10),
+                    // --- Rating Display ---
                     if (rating != null && rating! > 0)
                       Row(
                         children: [
-                          Icon(Platform.isIOS ? CupertinoIcons.star_fill : Icons.star, color: Colors.amber, size: 18), // Icon adaptif
-                          const SizedBox(width: 4),
+                          Icon(CupertinoIcons.star_fill, color: Colors.amber, size: 18),
+                          const SizedBox(width: 5),
                           Text(
                             rating!.toStringAsFixed(1),
                             style: GoogleFonts.poppins(
                               fontSize: 14,
-                              fontWeight: FontWeight.w500,
+                              fontWeight: FontWeight.w600,
                               color: textColor,
                             ),
                           ),
@@ -679,58 +730,52 @@ class NovelCard extends StatelessWidget {
   }
 }
 
-// Helper untuk cek dark mode (opsional, bisa langsung pakai Theme.of(context).brightness)
-bool isDarkMode(BuildContext context) => Theme.of(context).brightness == Brightness.dark;
 
-// Widget Placeholder untuk Novel Card (saat loading FutureBuilder)
+// --- Placeholder Widgets ---
+
 class NovelCardPlaceholder extends StatelessWidget {
   final Color cardColor;
-  const NovelCardPlaceholder({Key? key, required this.cardColor}) : super(key: key);
+  final Color placeholderColor;
+
+  const NovelCardPlaceholder({Key? key, required this.cardColor, required this.placeholderColor}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-     final bool dark = isDarkMode(context);
-     final Color shimmerBase = dark ? Colors.grey[800]! : Colors.grey[300]!;
-
-    return _buildPlaceholderContent(cardColor, shimmerBase);
+    return _buildPlaceholderContent(cardColor, placeholderColor);
   }
 
-    Widget _buildPlaceholderContent(Color cardColor, Color placeholderColor) {
+
+  Widget _buildPlaceholderContent(Color cardColor, Color contentPlaceholderColor) {
     return Card(
-      elevation: 2,
+      elevation: 1.5,
       color: cardColor,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12.0),
       ),
+      clipBehavior: Clip.antiAlias,
       child: Padding(
         padding: const EdgeInsets.all(12.0),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Placeholder Gambar
             Container(
-              width: 80,
-              height: 120,
+              width: 85,
+              height: 125,
               decoration: BoxDecoration(
-                 color: placeholderColor,
+                 color: contentPlaceholderColor,
                  borderRadius: BorderRadius.circular(8.0),
               ),
             ),
             const SizedBox(width: 16),
-            // Placeholder Teks
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                   Container(width: double.infinity, height: 20, color: placeholderColor),
-                   const SizedBox(height: 8),
-                   Container(width: double.infinity * 0.6, height: 16, color: placeholderColor),
-                   const SizedBox(height: 12),
-                   Container(width: double.infinity, height: 14, color: placeholderColor),
-                   const SizedBox(height: 6),
-                   Container(width: double.infinity, height: 14, color: placeholderColor),
-                    const SizedBox(height: 6),
-                   Container(width: double.infinity * 0.8, height: 14, color: placeholderColor),
+                   Container(width: double.infinity, height: 20, color: contentPlaceholderColor, margin: const EdgeInsets.only(bottom: 8)),
+                   Container(width: double.infinity * 0.6, height: 16, color: contentPlaceholderColor, margin: const EdgeInsets.only(bottom: 12)),
+                   Container(width: double.infinity, height: 14, color: contentPlaceholderColor, margin: const EdgeInsets.only(bottom: 6)),
+                   Container(width: double.infinity, height: 14, color: contentPlaceholderColor, margin: const EdgeInsets.only(bottom: 6)),
+                   Container(width: double.infinity * 0.8, height: 14, color: contentPlaceholderColor),
                 ],
               ),
             ),
@@ -739,4 +784,54 @@ class NovelCardPlaceholder extends StatelessWidget {
       ),
     );
   }
+}
+
+
+// Placeholder for Category Card
+class CategoryCardPlaceholder extends StatelessWidget {
+ final Color cardColor;
+ final Color placeholderColor;
+
+ const CategoryCardPlaceholder({Key? key, required this.cardColor, required this.placeholderColor}) : super(key: key);
+
+ @override
+ Widget build(BuildContext context) {
+   return _buildPlaceholderContent(cardColor, placeholderColor);
+ }
+
+ Widget _buildPlaceholderContent(Color cardColor, Color contentPlaceholderColor) {
+   return Card(
+     elevation: 1.5,
+     color: cardColor,
+     shape: RoundedRectangleBorder(
+       borderRadius: BorderRadius.circular(12.0),
+     ),
+     clipBehavior: Clip.antiAlias,
+     child: Column(
+       crossAxisAlignment: CrossAxisAlignment.stretch,
+       children: [
+         // Placeholder Image Area
+         Expanded(
+           flex: 3,
+           child: Container(color: contentPlaceholderColor),
+         ),
+         // Placeholder Text Area
+         Expanded(
+           flex: 2,
+           child: Padding(
+             padding: const EdgeInsets.all(10.0),
+             child: Column(
+               crossAxisAlignment: CrossAxisAlignment.start,
+               mainAxisAlignment: MainAxisAlignment.center,
+               children: [
+                 Container(width: double.infinity * 0.8, height: 18, color: contentPlaceholderColor, margin: const EdgeInsets.only(bottom: 6)),
+                 Container(width: double.infinity * 0.5, height: 14, color: contentPlaceholderColor),
+               ],
+             ),
+           ),
+         ),
+       ],
+     ),
+   );
+ }
 }

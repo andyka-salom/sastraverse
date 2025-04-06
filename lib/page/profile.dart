@@ -1,4 +1,3 @@
-import 'dart:io' show Platform;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -16,16 +15,17 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
+  // --- State Variables ---
   String name = "";
   String email = "";
   int age = 0;
   String profileImageUrl = "";
   String? userId;
 
-  bool _isLoading = false;
-  bool _isFetchingData = true;
+  bool _isLoading = false; // For save button state
+  bool _isFetchingData = true; // For initial data load
 
-  // --- Controllers ---
+  // --- Controllers & Keys ---
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _ageController = TextEditingController();
@@ -35,8 +35,8 @@ class _ProfilePageState extends State<ProfilePage> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
+  // --- Constants ---
   static const String defaultAvatarAssetPath = 'assets/images/foto.jpg';
-
 
   @override
   void initState() {
@@ -44,26 +44,55 @@ class _ProfilePageState extends State<ProfilePage> {
     _fetchUserData();
   }
 
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    _ageController.dispose();
+    super.dispose();
+  }
+
+  // --- Data Fetching ---
   Future<void> _fetchUserData() async {
-     setState(() => _isFetchingData = true);
+    setState(() => _isFetchingData = true);
     User? currentUser = _auth.currentUser;
     if (currentUser != null) {
       userId = currentUser.uid;
       try {
-        DocumentSnapshot userDoc = await _firestore.collection('users').doc(userId).get();
+        DocumentSnapshot userDoc =
+            await _firestore.collection('users').doc(userId).get();
         if (mounted && userDoc.exists) {
           final data = userDoc.data() as Map<String, dynamic>;
           setState(() {
             name = data['name'] ?? '';
+            // Prefer email from Auth, fallback to Firestore, then empty
             email = currentUser.email ?? data['email'] ?? '';
             age = data['age'] ?? 0;
             profileImageUrl = data['profileImageUrl'] ?? '';
-            _initializeControllers();
+            _initializeControllers(); // Initialize after fetching
           });
-        } else if (mounted) { print("User document not found for UID: $userId"); /* Handle */ }
-      } catch (e) { if(mounted) { print("Error fetching user data: $e"); /* Handle */ }
-      } finally { if (mounted) { setState(() => _isFetchingData = false); } }
-    } else { print("No user logged in!"); if (mounted) { setState(() => _isFetchingData = false); /* Handle */ } }
+        } else if (mounted) {
+          print("User document not found for UID: $userId");
+          // Optionally set default values or show an error message
+           email = currentUser.email ?? ''; // Still set email if available
+           _initializeControllers();
+        }
+      } catch (e) {
+        if (mounted) {
+          print("Error fetching user data: $e");
+          // Handle error (e.g., show Snackbar)
+        }
+      } finally {
+        // Ensure loading state is turned off even if errors occur
+        if (mounted) {
+          setState(() => _isFetchingData = false);
+        }
+      }
+    } else {
+      print("No user logged in!");
+       if (mounted) { setState(() => _isFetchingData = false); }
+       // if (mounted) Navigator.pushNamedAndRemoveUntil(context, AppRoutes.login, (route) => false);
+    }
   }
 
   void _initializeControllers() {
@@ -72,69 +101,132 @@ class _ProfilePageState extends State<ProfilePage> {
     _ageController.text = age > 0 ? age.toString() : '';
   }
 
-  @override
-  void dispose() {
-    _nameController.dispose(); _emailController.dispose(); _ageController.dispose();
-    super.dispose();
-  }
-
-
+  // --- Profile Actions ---
   Future<void> _saveProfile() async {
-     if (_isLoading || userId == null) return;
+
+    if (_isLoading || userId == null) return;
     setState(() => _isLoading = true);
+
     try {
       String newName = _nameController.text.trim();
       int newAge = int.tryParse(_ageController.text.trim()) ?? age;
-      await _firestore.collection('users').doc(userId).update({'name': newName, 'age': newAge});
-      if (mounted) { setState(() { name = newName; age = newAge; });}
-    } catch (e) { if (mounted) { print("Error saving profile: $e");}
-    } finally { if (mounted) { setState(() => _isLoading = false); } }
+      Map<String, dynamic> dataToUpdate = {
+        'name': newName,
+        'age': newAge,
+        // 'profileImageUrl': newImageUrl, // Update image URL if changed via _changeProfilePicture
+      };
+
+      await _firestore.collection('users').doc(userId).update(dataToUpdate);
+
+      if (mounted) {
+        setState(() {
+          name = newName;
+          age = newAge;
+          // Show success feedback (e.g., Snackbar)
+          ScaffoldMessenger.of(context).showSnackBar(
+             const SnackBar(content: Text('Profile saved successfully!'), backgroundColor: Colors.green),
+          );
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        print("Error saving profile: $e");
+        // Show error feedback
+        ScaffoldMessenger.of(context).showSnackBar(
+           SnackBar(content: Text('Error saving profile: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      // Ensure loading state is turned off
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   Future<void> _changeProfilePicture() async {
-     print("Change profile picture tapped"); if(mounted) {}
+    print("Change profile picture tapped - Implementation needed");
+    if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+           const SnackBar(content: Text('Image change feature not yet implemented.')),
+        );
+    }
   }
 
-  Future<void> _logout() async { 
-     print("Logout tapped");
+  Future<void> _logout() async {
+    print("Logout tapped");
+    final bool confirmLogout = await showCupertinoDialog<bool>(
+      context: context,
+      builder: (BuildContext context) => CupertinoAlertDialog(
+        title: const Text('Confirm Logout'),
+        content: const Text('Are you sure you want to log out?'),
+        actions: <CupertinoDialogAction>[
+          CupertinoDialogAction(
+            child: const Text('Cancel'),
+            onPressed: () => Navigator.of(context).pop(false),
+          ),
+          CupertinoDialogAction(
+            child: const Text('Logout'),
+            isDestructiveAction: true,
+            onPressed: () => Navigator.of(context).pop(true),
+          ),
+        ],
+      ),
+    ) ?? false;
+
+    if (!confirmLogout || !mounted) return;
+
     try {
-      SharedPreferences prefs = await SharedPreferences.getInstance(); await prefs.remove('user_uid');
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      await prefs.remove('user_uid');
       await _auth.signOut();
-      if (mounted) { Navigator.pushNamedAndRemoveUntil(context, AppRoutes.login, (route) => false); }
-    } catch (e) { if(mounted) { print("Error logging out: $e");} }
+      if (mounted) {
+        Navigator.pushNamedAndRemoveUntil(
+            context, AppRoutes.login, (route) => false);
+      }
+    } catch (e) {
+      if (mounted) {
+        print("Error logging out: $e");
+         ScaffoldMessenger.of(context).showSnackBar(
+           SnackBar(content: Text('Error logging out: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
   }
 
-
+  // --- Build Method ---
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final Color onPrimaryColor = theme.colorScheme.onPrimary;
+    final Color primaryColor = theme.colorScheme.primary;
+    final Color scaffoldColor = theme.scaffoldBackgroundColor;
+    final Color onSurfaceColor = theme.colorScheme.onSurface;
+    final Color surfaceVarColor = theme.colorScheme.surfaceVariant;
 
-    final ImageProvider avatarImageProvider;
-    if (profileImageUrl.isNotEmpty) {
-        avatarImageProvider = NetworkImage(profileImageUrl);
-    } else {
-       avatarImageProvider = const AssetImage(defaultAvatarAssetPath);
-    }
+    final ImageProvider avatarImageProvider = (profileImageUrl.isNotEmpty)
+        ? NetworkImage(profileImageUrl)
+        : const AssetImage(defaultAvatarAssetPath);
+
 
     return Scaffold(
+      backgroundColor: scaffoldColor,
       appBar: AppBar(
-        backgroundColor: theme.appBarTheme.backgroundColor ?? theme.colorScheme.surface,
+        backgroundColor: theme.appBarTheme.backgroundColor ?? surfaceVarColor,
         elevation: theme.appBarTheme.elevation ?? 0.5,
-        foregroundColor: theme.appBarTheme.foregroundColor ?? theme.colorScheme.onSurface,
+        foregroundColor: theme.appBarTheme.foregroundColor ?? onSurfaceColor,
         title: Text(
           'Profile',
           style: GoogleFonts.poppins(
-            color: theme.appBarTheme.titleTextStyle?.color ?? theme.colorScheme.onSurface,
-            fontWeight: FontWeight.w600
-          )
+              color: theme.appBarTheme.titleTextStyle?.color ?? onSurfaceColor,
+              fontWeight: FontWeight.w600),
         ),
         centerTitle: true,
         automaticallyImplyLeading: false,
       ),
-      backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
         child: _isFetchingData
-            ? const Center(child: CircularProgressIndicator.adaptive())
+            ? const Center(child: CupertinoActivityIndicator(radius: 15))
             : SingleChildScrollView(
                 padding: const EdgeInsets.all(24.0),
                 child: Form(
@@ -147,26 +239,26 @@ class _ProfilePageState extends State<ProfilePage> {
                         children: [
                           CircleAvatar(
                             radius: 65,
-                            backgroundColor: theme.colorScheme.surfaceVariant,
-                            backgroundImage: avatarImageProvider,
-                            onBackgroundImageError: (exception, stackTrace) {
-                              print("Error loading avatar image: $exception");
+                            backgroundColor: surfaceVarColor,
+                            foregroundImage: avatarImageProvider,
+                            backgroundImage: const AssetImage(defaultAvatarAssetPath),
+                            onForegroundImageError: (exception, stackTrace) {
+                               print("Error loading network avatar, using default. Error: $exception");
                             },
                           ),
-                          // Tombol Edit Foto
                           Material(
-                             color: theme.colorScheme.primary,
-                             shape: const CircleBorder(),
-                             clipBehavior: Clip.antiAlias,
-                             elevation: 2,
+                            color: primaryColor,
+                            shape: const CircleBorder(),
+                            clipBehavior: Clip.antiAlias,
+                            elevation: 2,
                             child: InkWell(
                               onTap: _changeProfilePicture,
                               child: Padding(
-                                padding: const EdgeInsets.all(6.0), // Padding lebih kecil
+                                padding: const EdgeInsets.all(6.0),
                                 child: Icon(
-                                  Platform.isIOS ? CupertinoIcons.pencil : Icons.edit, // Ikon edit
-                                  size: 18, // Ukuran ikon lebih kecil
-                                  color: theme.colorScheme.onPrimary,
+                                  CupertinoIcons.pencil,
+                                  size: 18,
+                                  color: onPrimaryColor,
                                 ),
                               ),
                             ),
@@ -174,49 +266,38 @@ class _ProfilePageState extends State<ProfilePage> {
                         ],
                       ),
                       const SizedBox(height: 16),
-                       if (name.isNotEmpty) 
-                         Padding(
-                           padding: const EdgeInsets.only(bottom: 24.0),
-                           child: Text(
-                             name,
-                             style: GoogleFonts.poppins(
-                               fontSize: 22,
-                               fontWeight: FontWeight.w600,
-                               color: theme.textTheme.titleLarge?.color
-                             ),
-                             textAlign: TextAlign.center,
+
+                      // --- Display Name ---
+                       Padding(
+                         padding: const EdgeInsets.only(bottom: 24.0),
+                         child: Text(
+                           name.isNotEmpty ? name : 'Update Your Profile',
+                           style: GoogleFonts.poppins(
+                             fontSize: name.isNotEmpty ? 22 : 18,
+                             fontWeight: name.isNotEmpty ? FontWeight.w600 : FontWeight.w500,
+                             color: name.isNotEmpty
+                                ? theme.textTheme.titleLarge?.color
+                                : theme.hintColor,
                            ),
+                           textAlign: TextAlign.center,
                          ),
-                       if (name.isEmpty && !_isFetchingData)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 24.0),
-                            child: Text(
-                              'Update Your Profile',
-                              style: GoogleFonts.poppins(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w500,
-                                color: theme.hintColor
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
+                       ),
 
-
-                      // --- Form Edit ---
-                       _buildSectionTitle(context, 'Edit Information'),
+                      // --- Form Fields Section ---
+                      _buildSectionTitle(context, 'Edit Information'),
                       const SizedBox(height: 16),
                       _buildTextField(
                         context: context,
                         labelText: 'Username',
                         controller: _nameController,
-                        icon: Platform.isIOS ? CupertinoIcons.person : Icons.person_outline,
+                        icon: CupertinoIcons.person, 
                       ),
                       const SizedBox(height: 16),
                       _buildTextField(
                         context: context,
                         labelText: 'Email',
                         controller: _emailController,
-                        icon: Platform.isIOS ? CupertinoIcons.mail : Icons.email_outlined,
+                        icon: CupertinoIcons.mail,
                         readOnly: true,
                         keyboardType: TextInputType.emailAddress,
                       ),
@@ -225,48 +306,55 @@ class _ProfilePageState extends State<ProfilePage> {
                         context: context,
                         labelText: 'Age',
                         controller: _ageController,
-                        icon: Platform.isIOS ? CupertinoIcons.gift : Icons.cake_outlined,
+                        icon: CupertinoIcons.gift,
                         keyboardType: TextInputType.number,
                       ),
                       const SizedBox(height: 24),
 
-                      // --- Tombol Save ---
+                      // --- Save Button ---
                       ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: theme.colorScheme.primary,
-                          foregroundColor: theme.colorScheme.onPrimary,
+                          backgroundColor: primaryColor,
+                          foregroundColor: onPrimaryColor,
                           minimumSize: const Size(double.infinity, 48),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          textStyle: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                          textStyle: GoogleFonts.poppins(
+                              fontSize: 16, fontWeight: FontWeight.w600),
                         ),
                         onPressed: _isLoading ? null : _saveProfile,
                         child: _isLoading
-                            ? const SizedBox( height: 24, width: 24, child: CircularProgressIndicator.adaptive( strokeWidth: 3, backgroundColor: Colors.white54,))
+                            ? const CupertinoActivityIndicator(color: Colors.white)
                             : const Text('Save Changes'),
                       ),
                       const SizedBox(height: 30),
 
-                      // --- Bagian Settings ---
-                      const Divider(), // Pemisah
+                      // --- Settings Section ---
+                      const Divider(),
                       const SizedBox(height: 16),
                       _buildSectionTitle(context, 'Settings'),
                       const SizedBox(height: 8),
-                      _buildSettingsSection(context), // Dark Mode Toggle
+                      // Use helper for settings row
+                      _buildSettingsSection(context),
                       const SizedBox(height: 24),
 
-                       // --- Tombol Logout ---
-                      const Divider(), // Pemisah
+                      // --- Logout Button ---
+                      const Divider(), // Material Divider
                       const SizedBox(height: 16),
                       TextButton.icon(
-                         style: TextButton.styleFrom(
+                        style: TextButton.styleFrom(
                           foregroundColor: theme.colorScheme.error,
-                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), // Tambah border radius
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 20, vertical: 12),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
                         ),
-                        icon: Icon(Platform.isIOS ? CupertinoIcons.square_arrow_right : Icons.logout, size: 20),
-                        label: Text('Logout', style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 16)), // Teks lebih besar
+                        icon: const Icon(CupertinoIcons.square_arrow_right, size: 20),
+                        label: Text('Logout',
+                            style: GoogleFonts.poppins(
+                                fontWeight: FontWeight.w600, fontSize: 16)),
                         onPressed: _logout,
-                       ),
+                      ),
                     ],
                   ),
                 ),
@@ -275,9 +363,11 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  // Helper untuk Judul Section
+  // --- Helper Widgets ---
+
+  // Helper for Section Title Text
   Widget _buildSectionTitle(BuildContext context, String title) {
-     final theme = Theme.of(context);
+    final theme = Theme.of(context);
     return Align(
       alignment: Alignment.centerLeft,
       child: Text(
@@ -285,14 +375,12 @@ class _ProfilePageState extends State<ProfilePage> {
         style: GoogleFonts.poppins(
           fontSize: 18,
           fontWeight: FontWeight.w600,
-          color: theme.textTheme.titleMedium?.color,
+          color: theme.textTheme.titleMedium?.color ?? theme.colorScheme.onSurface,
         ),
       ),
     );
   }
 
-
-  // Helper Widget untuk TextField (Disederhanakan)
   Widget _buildTextField({
     required BuildContext context,
     required String labelText,
@@ -302,73 +390,93 @@ class _ProfilePageState extends State<ProfilePage> {
     bool readOnly = false,
     String? Function(String?)? validator,
   }) {
-     final theme = Theme.of(context);
+    final theme = Theme.of(context);
+    final bool isEffectivelyEnabled = !readOnly;
+
     return TextFormField(
       controller: controller,
       readOnly: readOnly,
+      enabled: isEffectivelyEnabled,
       keyboardType: keyboardType,
-      style: GoogleFonts.poppins(color: theme.textTheme.bodyLarge?.color),
+      style: GoogleFonts.poppins(
+        color: isEffectivelyEnabled
+            ? (theme.textTheme.bodyLarge?.color)
+            : theme.disabledColor,
+      ),
       validator: validator,
       decoration: InputDecoration(
         labelText: labelText,
-        labelStyle: GoogleFonts.poppins(color: theme.hintColor),
-        prefixIcon: Icon(icon, color: theme.hintColor, size: 20),
+        labelStyle: GoogleFonts.poppins(
+          color: isEffectivelyEnabled ? theme.hintColor : theme.disabledColor.withOpacity(0.7)
+        ),
+        prefixIcon: Icon(icon, color: isEffectivelyEnabled ? theme.hintColor : theme.disabledColor.withOpacity(0.7), size: 20),
         filled: true,
-        // Warna fill dari tema input decoration atau fallback
-        fillColor: theme.inputDecorationTheme.fillColor ?? theme.colorScheme.surfaceVariant.withOpacity(0.5),
-        contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16), // Padding lebih rapat
-        border: OutlineInputBorder( // Gunakan border standar tema atau kustom
-          borderRadius: BorderRadius.circular(12.0), // Radius konsisten
+        fillColor: readOnly
+             ? theme.disabledColor.withOpacity(0.05)
+             : (theme.inputDecorationTheme.fillColor ?? theme.colorScheme.surfaceVariant.withOpacity(0.4)),
+        contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12.0),
           borderSide: BorderSide(color: theme.colorScheme.outline.withOpacity(0.5), width: 1),
         ),
         enabledBorder: OutlineInputBorder(
-           borderRadius: BorderRadius.circular(12.0),
-           borderSide: BorderSide(color: theme.colorScheme.outline.withOpacity(0.5), width: 1),
+          borderRadius: BorderRadius.circular(12.0),
+          borderSide: BorderSide(color: theme.colorScheme.outline.withOpacity(0.5), width: 1),
         ),
         focusedBorder: OutlineInputBorder(
-           borderRadius: BorderRadius.circular(12.0),
-           borderSide: BorderSide(color: theme.colorScheme.primary, width: 1.5),
-        ),
-        disabledBorder: OutlineInputBorder( // Style saat readOnly/disabled
           borderRadius: BorderRadius.circular(12.0),
-           borderSide: BorderSide(color: theme.disabledColor.withOpacity(0.3), width: 1),
+          borderSide: BorderSide(color: theme.colorScheme.primary, width: 1.5),
+        ),
+        // Style for readOnly state
+        disabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12.0),
+          borderSide: BorderSide(color: theme.disabledColor.withOpacity(0.2), width: 1),
         ),
       ),
     );
-   }
+  }
 
-
-  // Helper Widget untuk Bagian Settings (Lebih Rapi)
   Widget _buildSettingsSection(BuildContext context) {
-      final theme = Theme.of(context);
+    final theme = Theme.of(context);
     final appearance = Appearance.of(context);
     final bool isCurrentlyDark = appearance?.mode == ThemeMode.dark;
 
-    // Bungkus dengan Card untuk elevasi/batas
     return Card(
-      elevation: 0.5, // Elevasi halus
-      margin: EdgeInsets.zero, // Hapus margin default Card
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), // Radius konsisten
-      color: theme.colorScheme.surfaceVariant.withOpacity(0.5), // Warna latar card
+      elevation: 0,
+      margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: theme.colorScheme.outline.withOpacity(0.5), width: 1)
+      ),
+      color: theme.cardColor,
+      clipBehavior: Clip.antiAlias,
       child: ListTile(
-         // contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 4), // Padding ListTile
         leading: Icon(
-          Platform.isIOS ? CupertinoIcons.moon_stars : Icons.brightness_6_outlined, // Outline ikon
+          CupertinoIcons.moon_stars,
           color: theme.textTheme.bodyLarge?.color,
         ),
         title: Text(
           'Dark Mode',
-          style: GoogleFonts.poppins(color: theme.textTheme.bodyLarge?.color, fontWeight: FontWeight.w500),
+          style: GoogleFonts.poppins(
+              color: theme.textTheme.bodyLarge?.color,
+              fontWeight: FontWeight.w500),
         ),
         trailing: Switch.adaptive(
-           value: isCurrentlyDark,
+          value: isCurrentlyDark,
           onChanged: (value) {
-            appearance?.setMode( value ? ThemeMode.dark : ThemeMode.light, );
+            appearance?.setMode(
+              value ? ThemeMode.dark : ThemeMode.light,
+            );
             print("Dark Mode set via Appearance: $value");
           },
           activeColor: theme.colorScheme.primary,
-         ),
-       ),
+        ),
+        onTap: () {
+            appearance?.setMode(
+              !isCurrentlyDark ? ThemeMode.dark : ThemeMode.light,
+            );
+        },
+      ),
     );
-   }
+  }
 }

@@ -1,9 +1,10 @@
-import 'dart:io' show Platform;
+import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+// --- Novel Model Class
 class Novel {
   final String title;
   final String author;
@@ -24,16 +25,17 @@ class Novel {
   factory Novel.fromDocument(DocumentSnapshot doc) {
     Map<String, dynamic> data = doc.data() as Map<String, dynamic>? ?? {};
     return Novel(
-      id: doc.id, // Selalu ada ID
-      title: data['title'] as String? ?? 'No Title', // Default value jika null
-      author: data['author'] as String? ?? 'Unknown Author', // Default value
-      categoryId: data['categoryId'] as String? ?? '', // Default value
-      coverImageUrl: data['coverImageUrl'] as String? ?? '', // Default value (handle di UI jika kosong)
-      description: data['description'] as String? ?? 'No description available.', // Default value
+      id: doc.id,
+      title: data['title'] as String? ?? 'No Title',
+      author: data['author'] as String? ?? 'Unknown Author',
+      categoryId: data['categoryId'] as String? ?? '',
+      coverImageUrl: data['coverImageUrl'] as String? ?? '',
+      description: data['description'] as String? ?? 'No description available.',
     );
   }
 }
 
+// --- Search Page Widget ---
 class SearchPage extends StatefulWidget {
   const SearchPage({Key? key}) : super(key: key);
 
@@ -44,79 +46,93 @@ class SearchPage extends StatefulWidget {
 class _SearchPageState extends State<SearchPage> {
   final TextEditingController _searchController = TextEditingController();
   String _searchTerm = '';
-  Stream<QuerySnapshot>? _searchStream;
+  Stream<QuerySnapshot>? _initialNovelStream;
+  Timer? _debounce;
 
   @override
   void initState() {
     super.initState();
-    _searchStream = FirebaseFirestore.instance.collection('novels').orderBy('title').snapshots();
-     _searchController.addListener(_onSearchChanged);
+    _initialNovelStream = FirebaseFirestore.instance
+        .collection('novels')
+        .orderBy('title')
+        .snapshots();
+    _searchController.addListener(_onSearchChanged);
   }
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
     super.dispose();
   }
 
   void _onSearchChanged() {
-   if (_searchTerm != _searchController.text.trim()) {
-      setState(() {
-        _searchTerm = _searchController.text.trim();
-      });
-    }
+     final newSearchTerm = _searchController.text.trim();
+     if (_searchTerm != newSearchTerm) {
+       setState(() { _searchTerm = newSearchTerm; });
+     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // Ambil warna tema
+    // Theme colors
     final Color? textColor = Theme.of(context).textTheme.bodyLarge?.color;
     final Color cardColor = Theme.of(context).cardColor;
     final Color subtleTextColor = Theme.of(context).textTheme.bodyMedium!.color!.withOpacity(0.7);
     final Color hintColor = Theme.of(context).hintColor;
     final bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final Color searchFieldBgColor = isDarkMode ? Colors.grey[800]! : Colors.grey[200]!;
+    final Color searchFieldBgColor = isDarkMode ? Colors.grey[850]! : Colors.grey[200]!;
+    final Color scaffoldColor = Theme.of(context).scaffoldBackgroundColor;
 
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: scaffoldColor,
       appBar: AppBar(
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        backgroundColor: scaffoldColor,
         elevation: 0,
         automaticallyImplyLeading: false,
-        title: _buildSearchField(hintColor, textColor, searchFieldBgColor),
+        title: _buildMaterialSearchField(hintColor, textColor, searchFieldBgColor),
+        toolbarHeight: 65,
       ),
-      body: SafeArea( 
+      body: SafeArea(
         child: Column(
           children: [
             Expanded(
               child: StreamBuilder<QuerySnapshot>(
-                stream: _searchStream,
+                stream: _initialNovelStream,
                 builder: (context, snapshot) {
                   if (snapshot.hasError) {
                     return Center(
-                      child: Text('Error: ${snapshot.error}',
-                          style: GoogleFonts.poppins(color: Colors.red)),
+                      child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(CupertinoIcons.exclamationmark_octagon, color: Colors.redAccent, size: 40),
+                            const SizedBox(height: 10),
+                            Text('Error: ${snapshot.error}', style: GoogleFonts.poppins(color: Colors.redAccent)),
+                          ],
+                        ),
                     );
                   }
 
                   if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator.adaptive());
+                    return const Center(child: CupertinoActivityIndicator(radius: 15));
                   }
 
                   if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                    return Center(
-                      child: Text('No novels available.',
-                          style: GoogleFonts.poppins(color: subtleTextColor)),
-                    );
+                     return Center(
+                       child: Text(
+                         'No novels available in the library.',
+                         textAlign: TextAlign.center,
+                         style: GoogleFonts.poppins(color: subtleTextColor, fontSize: 15),
+                       ),
+                     );
                   }
 
-                  // Parse data ke List<Novel>
+                  // Client-Side Filtering
                   List<Novel> allNovels = snapshot.data!.docs
                       .map((doc) => Novel.fromDocument(doc))
                       .toList();
 
-                  // Lakukan filtering di client-side berdasarkan _searchTerm
                   List<Novel> filteredNovels = allNovels;
                   if (_searchTerm.isNotEmpty) {
                     filteredNovels = allNovels.where((novel) {
@@ -127,38 +143,34 @@ class _SearchPageState extends State<SearchPage> {
                     }).toList();
                   }
 
-                  // Tampilkan pesan jika hasil filter kosong
-                  if (filteredNovels.isEmpty && _searchTerm.isNotEmpty) {
+                  if (filteredNovels.isEmpty) {
                     return Center(
-                      child: Text('No results found for "$_searchTerm"',
-                          style: GoogleFonts.poppins(color: subtleTextColor)),
-                    );
-                  }
-                  // Tampilkan pesan jika stream awal kosong (sebelum search)
-                  if (filteredNovels.isEmpty && _searchTerm.isEmpty) {
-                    return Center(
-                      child: Text('Start typing to search for novels.',
-                          style: GoogleFonts.poppins(color: subtleTextColor)),
+                      child: Text(
+                        _searchTerm.isEmpty
+                            ? 'Start typing to search for novels.'
+                            : 'No results found for "$_searchTerm"',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.poppins(color: subtleTextColor, fontSize: 15),
+                      ),
                     );
                   }
 
-
-                  // Gunakan ListView.separated untuk jarak
+                  // Use Material ListView
                   return ListView.separated(
-                    padding: const EdgeInsets.all(16.0), // Padding untuk list
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
                     itemCount: filteredNovels.length,
                     separatorBuilder: (context, index) => const SizedBox(height: 12),
                     itemBuilder: (context, index) {
-                      // Kirim data novel dan warna tema ke NovelSearchCard
+                      final novel = filteredNovels[index];
                       return NovelSearchCard(
-                        novel: filteredNovels[index],
+                        novel: novel,
                         textColor: textColor,
                         cardColor: cardColor,
                         subtleTextColor: subtleTextColor,
                         onTap: () {
-                          // Aksi ketika card di-tap (misal, navigasi ke detail)
-                          print('Tapped on: ${filteredNovels[index].title}');
-                          // Navigator.push(context, MaterialPageRoute(builder: (context) => NovelDetailScreen(novelId: filteredNovels[index].id)));
+                          print('Tapped on: ${novel.title} (ID: ${novel.id})');
+                          // Navigator.push(context, MaterialPageRoute(builder: (context) => NovelDetailScreen(novelId: novel.id)));
+                          FocusScope.of(context).unfocus(); // Hide keyboard
                         },
                       );
                     },
@@ -172,68 +184,53 @@ class _SearchPageState extends State<SearchPage> {
     );
   }
 
-  // Widget untuk field pencarian (adaptif)
-  Widget _buildSearchField(Color hintColor, Color? textColor, Color bgColor) {
-    if (Platform.isIOS) {
-      // Gunakan CupertinoSearchTextField untuk iOS
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 8.0), // Padding agar tidak terlalu mepet
-        child: CupertinoSearchTextField(
-          controller: _searchController,
-          placeholder: 'Search Novels or Authors...',
-          placeholderStyle: GoogleFonts.poppins(color: hintColor),
-          style: GoogleFonts.poppins(color: textColor),
-          backgroundColor: bgColor,
-          // onChanged: (value) => _onSearchChanged(), // Dihandle oleh listener controller
-        ),
-      );
-    } else {
-      // Gunakan TextField dengan InputDecoration Material untuk Android/lainnya
-      // Buat agar tingginya tidak terlalu besar di AppBar
-      return SizedBox(
-        height: 48, // Atur tinggi field
-        child: TextField(
-          controller: _searchController,
-          // onChanged: (value) => _onSearchChanged(), // Dihandle oleh listener controller
-          style: GoogleFonts.poppins(color: textColor, fontSize: 15),
-          decoration: InputDecoration(
-            hintText: 'Search Novels or Authors...',
-            hintStyle: GoogleFonts.poppins(color: hintColor, fontSize: 15),
-            prefixIcon: Icon(Icons.search, color: hintColor, size: 20),
-            // Tambahkan tombol clear (X) jika ada teks
-            suffixIcon: _searchTerm.isNotEmpty
-                ? IconButton(
-                    icon: const Icon(Icons.clear, size: 20),
-                    color: hintColor,
-                    onPressed: () {
-                      _searchController.clear();
-                       // _onSearchChanged(); // Dihandle oleh listener
-                    },
-                  )
-                : null,
-            contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 10), // Adjust padding
-            filled: true,
-            fillColor: bgColor, // Warna background field
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(30.0), // Border radius
-              borderSide: BorderSide.none, // Tanpa border luar
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(30.0),
-              borderSide: BorderSide.none,
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(30.0),
-              borderSide: BorderSide.none, // Atau beri border saat fokus jika diinginkan
-            ),
+  // --- Build Material TextField BUT with Forced Cupertino Icons ---
+  Widget _buildMaterialSearchField(Color hintColor, Color? textColor, Color bgColor) {
+    return SizedBox(
+      height: 48,
+      child: TextField( // Always use Material TextField
+        controller: _searchController,
+        style: GoogleFonts.poppins(color: textColor, fontSize: 15.5),
+        decoration: InputDecoration(
+          hintText: 'Search Novels, Authors...',
+          hintStyle: GoogleFonts.poppins(color: hintColor, fontSize: 15.5),
+          prefixIcon: Icon(CupertinoIcons.search, color: hintColor, size: 20),
+          suffixIcon: _searchTerm.isNotEmpty
+              ? IconButton(
+                  icon: const Icon(CupertinoIcons.clear_thick_circled, size: 18),
+                  color: hintColor,
+                  splashRadius: 20,
+                  onPressed: () {
+                    _searchController.clear();
+                  },
+                )
+              : null,
+          contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 10),
+          filled: true,
+          fillColor: bgColor,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12.0),
+            borderSide: BorderSide.none,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12.0),
+            borderSide: BorderSide.none,
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12.0),
+            borderSide: BorderSide(color: Theme.of(context).primaryColor.withOpacity(0.5), width: 1.0),
           ),
         ),
-      );
-    }
+        textInputAction: TextInputAction.search,
+        onSubmitted: (_) {
+          FocusScope.of(context).unfocus();
+        },
+      ),
+    );
   }
 }
 
-// Widget terpisah untuk menampilkan kartu hasil pencarian Novel
+// --- Novel Search Card Widget (Forcing Cupertino Icons) ---
 class NovelSearchCard extends StatelessWidget {
   final Novel novel;
   final Color? textColor;
@@ -253,68 +250,62 @@ class NovelSearchCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final Color placeholderBgColor = isDarkMode ? Colors.grey[800]! : Colors.grey[300]!;
 
+    // Use Material Card
     return Card(
-      elevation: 1.5, // Sedikit elevasi
+      elevation: 1.5,
       color: cardColor,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12.0),
       ),
-      clipBehavior: Clip.antiAlias, // Penting untuk clipping gambar
-      child: InkWell( // Tambahkan InkWell untuk efek tap
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.all(12.0),
           child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start, // Align items ke atas
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Gambar Cover
+              // --- Cover Image ---
               ClipRRect(
                 borderRadius: BorderRadius.circular(8.0),
                 child: SizedBox(
-                  width: 70, // Lebar gambar sedikit lebih besar
-                  height: 105, // Tinggi gambar proporsional
+                  width: 70,
+                  height: 105,
                   child: novel.coverImageUrl.isNotEmpty
                       ? Image.network(
                           novel.coverImageUrl,
                           fit: BoxFit.cover,
-                          // Loading builder adaptif
                           loadingBuilder: (context, child, loadingProgress) {
                             if (loadingProgress == null) return child;
                             return Container(
-                              color: isDarkMode ? Colors.grey[800] : Colors.grey[300],
-                              child: Center(
-                                child: Platform.isIOS
-                                    ? const CupertinoActivityIndicator(radius: 10)
-                                    : SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
-                              ),
+                              color: placeholderBgColor,
+                              child: const Center(child: CupertinoActivityIndicator(radius: 12)),
                             );
                           },
-                          // Error builder adaptif
                           errorBuilder: (context, error, stackTrace) {
                             return Container(
-                              color: isDarkMode ? Colors.grey[800] : Colors.grey[300],
+                              color: placeholderBgColor,
                               child: Icon(
-                                Platform.isIOS ? CupertinoIcons.photo : Icons.broken_image_outlined,
-                                color: subtleTextColor, size: 30,
+                                CupertinoIcons.book,
+                                color: subtleTextColor, size: 35,
                               ),
                             );
                           },
                         )
-                      // Placeholder jika URL gambar kosong
-                                            // Placeholder jika URL gambar kosong
                       : Container(
-                          color: isDarkMode ? Colors.grey[800] : Colors.grey[300],
+                          color: placeholderBgColor,
                           child: Icon(
-                            // GANTI MENJADI INI:
-                            Platform.isIOS ? CupertinoIcons.book : Icons.book_outlined, 
-                             color: subtleTextColor, size: 30,
-                             ),
+                            CupertinoIcons.book,
+                            color: subtleTextColor, size: 35,
+                          ),
                         ),
                 ),
               ),
               const SizedBox(width: 16),
-              // Informasi Teks
+
+              // --- Text Information ---
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -322,11 +313,11 @@ class NovelSearchCard extends StatelessWidget {
                     Text(
                       novel.title,
                       style: GoogleFonts.poppins(
-                        fontSize: 16, // Ukuran judul
-                        fontWeight: FontWeight.w600, // Bold
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
                         color: textColor,
                       ),
-                      maxLines: 2, // Maksimal 2 baris untuk judul
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 4),
@@ -341,15 +332,14 @@ class NovelSearchCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 8),
-                    // Deskripsi ditampilkan di sini
                     Text(
                       novel.description,
                       style: GoogleFonts.poppins(
-                        fontSize: 12,
-                        color: textColor?.withOpacity(0.85), // Sedikit transparan
-                        height: 1.4, // Jarak antar baris
+                        fontSize: 12.5,
+                        color: textColor?.withOpacity(0.8),
+                        height: 1.35,
                       ),
-                      maxLines: 3, // Batasi deskripsi hingga 3 baris
+                      maxLines: 3,
                       overflow: TextOverflow.ellipsis,
                     ),
                   ],
